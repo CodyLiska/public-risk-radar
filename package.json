@@ -1,0 +1,11 @@
+{
+  "name": "public-risk-radar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Address-based public risk aggregator — root scripts for the server + client workspaces.",
+  "scripts": {
+    "test": "npm run test:server && npm run test:client",
+    "test:server": "cd server && npm test",
+    "test:client": "cd client && npm test"
+  }
+}
