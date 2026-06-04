@@ -4,7 +4,7 @@
 > air quality, flood zone, nearby wildfires, stream gauges, recent earthquakes,
 > EPA-regulated facilities, and county disaster history — on one map.
 
-This is the MVP scaffold from the build plan. First demo geography: **Phoenix / Maricopa County, AZ**, but every source works nationally.
+Built around **Phoenix / Maricopa County, AZ** as the first demo geography, but every source works nationally. Nine public data sources, a risk timeline, opt-in Discord alerts, PostGIS persistence, and Redis-backed upstream caching.
 
 > ⚠️ Informational only. Data comes straight from public agency APIs and this tool is **not** an official source of emergency instructions or safety ratings.
 
@@ -13,10 +13,12 @@ This is the MVP scaffold from the build plan. First demo geography: **Phoenix / 
 ```
 public-risk-radar/
 ├── docker-compose.yml      # Postgres + PostGIS, Redis
-├── db/init/01_schema.sql   # geospatial schema (auto-loaded on first DB start)
+├── db/init/                # geospatial schema + alerts migration (auto-loaded on fresh DB)
 ├── server/                 # Node + Express API (aggregates all sources)
-│   └── src/services/       # one client per public data source
-└── client/                 # Vue 3 + Vite + MapLibre frontend
+│   ├── src/services/       # one client per public data source
+│   ├── src/services/alerts/# threshold evaluation, Discord delivery, background worker
+│   └── test/               # node:test suite (no extra deps)
+└── client/                 # Vue 3 + Vite + MapLibre frontend (+ Vitest)
 ```
 
 The backend geocodes the address (Census), then fans out to every source in
@@ -80,6 +82,18 @@ types: `aqi`, `weather_alert`, `flood`, `wildfire`, `earthquake`, `water_gauge`.
 > **fresh** DB volume. On an already-initialized dev DB, apply it once:
 > `docker exec -i prr-db psql -U prr -d public_risk_radar < db/init/02_alerts.sql`
 
+## Testing
+
+```bash
+npm test            # runs the server + client suites
+npm run test:server # node:test — services, aggregation, caching, persistence, alerts
+npm run test:client # Vitest — pure presentation helpers + the API layer
+```
+
+The server suite runs hermetically (forces the in-memory cache and a dummy AirNow
+key). DB-integration tests auto-skip when no Postgres is reachable, so the suite
+passes in a bare checkout.
+
 ## Notes / known rough edges
 
 - **AirNow** returns empty until `AIRNOW_API_KEY` is set — every other source works without a key.
@@ -88,5 +102,3 @@ types: `aqi`, `weather_alert`, `flood`, `wildfire`, `earthquake`, `water_gauge`.
 - Results are served **live** per request and also persisted into the normalized
   tables (timeline read-back via `/api/events`, history via `/api/history`).
   Upstream responses are cached in Redis (in-memory fallback if Redis is down).
-- This is a JavaScript project; it currently lives under a `02_Python` path for
-  convenience and will be relocated under `01_Javascript`.
