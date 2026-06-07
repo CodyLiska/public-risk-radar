@@ -55,8 +55,12 @@ npm test                                # repo root: server (node:test) + client
   DB-integration tests auto-skip with no Postgres. **Always keep `REDIS_URL=` for tests**
   or a live Redis client hangs the `node --test` process.
 - Alerts worker runs only when `ALERTS_ENABLED=true`.
+- DB image is `imresamu/postgis` (multi-arch) so it runs natively on both Windows/Intel
+  (amd64) and Apple Silicon (arm64). The official `postgis/postgis` is amd64-only and
+  would run under emulation on Apple Silicon — do not switch back to it.
 - Dev env: WSL2 (Ubuntu) + Docker Desktop on Windows (WSL integration). Launch Docker
   from WSL if needed: `cmd.exe /c start "" "C:\Program Files\Docker\Docker\Docker Desktop.exe"`.
+  On macOS, just start Docker Desktop normally.
 
 ## API Endpoints
 

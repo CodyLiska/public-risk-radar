@@ -57,6 +57,10 @@ cd client && npm install && npm run dev      # http://localhost:5173
 
 Open http://localhost:5173 and search an address (try `Phoenix, AZ`).
 
+> Runs natively on both Intel/Windows (amd64) and Apple Silicon (arm64) — the
+> Postgres/PostGIS image (`imresamu/postgis`) is multi-arch, so no per-machine
+> changes are needed.
+
 ## API
 
 | Endpoint | Description |
