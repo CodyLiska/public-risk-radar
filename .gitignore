@@ -1,9 +1,32 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
-.env
-.env.local
-*.log
-.DS_Store
-coverage/
 .vite/
+
+# Test/coverage
+coverage/
+
+# Logs
+*.log
+
+# Secrets / local env — keep the committed template (.env.example)
+.env
+.env.*
+!.env.example
+
+# Local database volume
 pgdata/
+
+# Claude Code local (personal) settings — shared .claude/ config stays tracked
+.claude/settings.local.json
+
+# OS / editor cruft
+.DS_Store
+._*
+Thumbs.db
+*.swp
+*.swo
+CLAUDE.md
+.claude/
