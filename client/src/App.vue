@@ -12,21 +12,17 @@ const history = ref([]);
 const savedEvents = ref([]);
 const mapRef = ref(null); // RiskMap component ref — used to fly the map to a card row
 
-// Move the map to a gauge's location when its card row is clicked.
 function focusGauge(g) {
   if (g.lat != null && g.lon != null) mapRef.value?.flyTo(g.lat, g.lon);
 }
 
-// Wildfire card owns its own radius selector + list (independent of the 25-mi
-// report data and the map framing).
+// Wildfire card
 const wildfireRadius = ref(25);
 const wildfires = ref([]);
 const wildfiresOk = ref(true);
 const wildfiresLoading = ref(false);
 
-// EPA card: a count selector over the nearest facilities the search already
-// returned (nearest-150 within 5 mi). The chosen slice drives BOTH the card list
-// and the map markers — no extra fetch, and the map visibly responds to N.
+// EPA card
 const epaCount = ref(10);
 const epaTotal = computed(() => (s.value.epaFacilities?.ok ? s.value.epaFacilities.data.total : 0));
 const epaOk = computed(() => !!s.value.epaFacilities?.ok);
@@ -34,7 +30,6 @@ const epaShown = computed(() =>
   s.value.epaFacilities?.ok ? s.value.epaFacilities.data.facilities.slice(0, epaCount.value) : [],
 );
 
-// Move the map to a facility's location when its card row is clicked.
 function focusFacility(f) {
   if (f.lat != null && f.lon != null) mapRef.value?.flyTo(f.lat, f.lon);
 }
@@ -65,7 +60,6 @@ async function onSearch() {
   }
 }
 
-// Compact "distance · size" line for a wildfire row.
 function fireMeta(w) {
   const parts = [];
   if (w.distanceMiles != null) parts.push(Math.round(w.distanceMiles) + ' mi');
@@ -119,7 +113,6 @@ function runFromHistory(item) {
   onSearch();
 }
 
-// Collapse repeated searches of the same address to the most recent few.
 const recentSearches = computed(() => dedupeRecentSearches(history.value));
 
 onMounted(loadHistory);
@@ -139,7 +132,7 @@ const disasterSummary = computed(() =>
     : { total: 0, byType: [] },
 );
 
-// Disaster card category filter ('all' or a specific incidentType).
+// Disaster card
 const disasterType = ref('all');
 const disastersShown = computed(() => {
   if (!s.value.disasterHistory?.ok) return [];
@@ -161,11 +154,8 @@ const topAqi = computed(() =>
   topObservation(s.value.airQuality?.ok ? s.value.airQuality.data.observations : []),
 );
 
-// Where the dominant reading lands on the 6-band AQI scale (band + marker %).
 const aqiInfo = computed(() => (topAqi.value ? aqiScale(topAqi.value.aqi) : null));
 
-// Every reported pollutant as a chip, each tinted by its own band; the worst
-// (dominant) one is highlighted.
 const aqiObs = computed(() => {
   const obs = s.value.airQuality?.ok ? s.value.airQuality.data.observations : [];
   return obs.map((o) => ({
@@ -176,13 +166,12 @@ const aqiObs = computed(() => {
   }));
 });
 
-// Flood risk presentation for the current point (falls back to undetermined).
 const floodRisk = computed(() => {
   const level = s.value.floodZone?.ok ? s.value.floodZone.data.riskLevel : null;
   return FLOOD_RISK[level] ?? FLOOD_RISK.undetermined;
 });
 
-// Hard-stop gradient of the 6 equal-width AQI bands (built once; bands are static).
+// Static AQI ribbon gradient.
 const AQI_RIBBON = `linear-gradient(to right, ${AQI_BANDS
   .map((b, i) => `${b.color} ${((i / AQI_BANDS.length) * 100).toFixed(2)}%, ${b.color} ${(((i + 1) / AQI_BANDS.length) * 100).toFixed(2)}%`)
   .join(', ')})`;

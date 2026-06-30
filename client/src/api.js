@@ -11,9 +11,8 @@ export function searchAddress(address) {
   return getJson(`/api/search?address=${encodeURIComponent(address)}`);
 }
 
-// Recently searched locations (persisted in Postgres).
 export function getHistory() {
-  return getJson('/api/history');
+  return getJson("/api/history");
 }
 
 // Persisted risk events near a point, filtered with PostGIS (cumulative across
@@ -22,7 +21,6 @@ export function getEvents(lat, lon, radiusMiles = 50) {
   return getJson(`/api/events?lat=${lat}&lon=${lon}&radius=${radiusMiles}`);
 }
 
-// Live wildfires near a point at a chosen radius (for the card's radius selector).
 export function getWildfires(lat, lon, radiusMiles = 25) {
   return getJson(`/api/wildfires?lat=${lat}&lon=${lon}&radius=${radiusMiles}`);
 }

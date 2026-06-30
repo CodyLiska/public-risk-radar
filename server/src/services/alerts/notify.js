@@ -1,6 +1,4 @@
-// Alert delivery. Pluggable on delivery_method so email (or others) can be added
-// later without touching the worker. Delivery functions throw on failure; the
-// worker wraps each call so one bad delivery never stops the loop.
+// Delivery methods throw on failure; the worker isolates failures per subscription.
 
 const DEFAULT_TIMEOUT_MS = 8000;
 
@@ -9,14 +7,19 @@ const DEFAULT_TIMEOUT_MS = 8000;
  * @param {string} webhookUrl  the per-subscription delivery_target
  * @param {string} message
  */
-export async function sendDiscord(webhookUrl, message, { fetchImpl = fetch, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
-  if (!webhookUrl) throw new Error('discord delivery_target (webhook URL) is missing');
+export async function sendDiscord(
+  webhookUrl,
+  message,
+  { fetchImpl = fetch, timeoutMs = DEFAULT_TIMEOUT_MS } = {},
+) {
+  if (!webhookUrl)
+    throw new Error("discord delivery_target (webhook URL) is missing");
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetchImpl(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: message }),
       signal: ctrl.signal,
     });
@@ -35,9 +38,11 @@ export async function sendDiscord(webhookUrl, message, { fetchImpl = fetch, time
  */
 export async function deliver(subscription, message, opts = {}) {
   switch (subscription.delivery_method) {
-    case 'discord':
+    case "discord":
       return sendDiscord(subscription.delivery_target, message, opts);
     default:
-      throw new Error(`unsupported delivery_method: ${subscription.delivery_method}`);
+      throw new Error(
+        `unsupported delivery_method: ${subscription.delivery_method}`,
+      );
   }
 }

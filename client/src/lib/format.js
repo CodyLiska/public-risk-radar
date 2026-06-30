@@ -9,35 +9,55 @@ function isDateOnly(d) {
 }
 
 export function fmtDate(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-US', isDateOnly(d) ? { timeZone: 'UTC' } : undefined);
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString(
+    "en-US",
+    isDateOnly(d) ? { timeZone: "UTC" } : undefined,
+  );
 }
 
 // Readable "Jun 28, 2024" — used where a longer list reads better than slashes.
 export function fmtMonthDayYear(d) {
-  if (!d) return '—';
-  const opts = { month: 'short', day: 'numeric', year: 'numeric' };
-  if (isDateOnly(d)) opts.timeZone = 'UTC';
-  return new Date(d).toLocaleDateString('en-US', opts);
+  if (!d) return "—";
+  const opts = { month: "short", day: "numeric", year: "numeric" };
+  if (isDateOnly(d)) opts.timeZone = "UTC";
+  return new Date(d).toLocaleDateString("en-US", opts);
 }
 
 // ALL-CAPS source text → readable Title Case ("BOULDER VIEW FIRE" → "Boulder
 // View Fire"), keeping connector words lowercase (except the first word).
-const TITLE_SMALL_WORDS = new Set(['and', 'or', 'of', 'the', 'a', 'an', 'to', 'in', 'for', 'on', 'at', 'by']);
+const TITLE_SMALL_WORDS = new Set([
+  "and",
+  "or",
+  "of",
+  "the",
+  "a",
+  "an",
+  "to",
+  "in",
+  "for",
+  "on",
+  "at",
+  "by",
+]);
 export function titleCase(str) {
-  if (!str) return '';
+  if (!str) return "";
   return str
     .toLowerCase()
     .split(/\s+/)
-    .map((w, i) => (i > 0 && TITLE_SMALL_WORDS.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
-    .join(' ');
+    .map((w, i) =>
+      i > 0 && TITLE_SMALL_WORDS.has(w)
+        ? w
+        : w.charAt(0).toUpperCase() + w.slice(1),
+    )
+    .join(" ");
 }
 
 // Short "x ago" label for a timestamp.
 export function fmtRelative(d, now = Date.now()) {
-  if (!d) return '';
+  if (!d) return "";
   const secs = Math.round((now - new Date(d)) / 1000);
-  if (secs < 60) return 'just now';
+  if (secs < 60) return "just now";
   if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
   if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
   return `${Math.floor(secs / 86400)}d ago`;
@@ -46,12 +66,16 @@ export function fmtRelative(d, now = Date.now()) {
 // NWS alert severity → badge colour. Unknown/null is informational, not severe,
 // so it gets neutral grey rather than red.
 export function severityClass(severity) {
-  switch ((severity || '').toLowerCase()) {
-    case 'extreme':
-    case 'severe':   return 'danger';
-    case 'moderate': return 'warn';
-    case 'minor':    return 'ok';
-    default:         return 'muted';
+  switch ((severity || "").toLowerCase()) {
+    case "extreme":
+    case "severe":
+      return "danger";
+    case "moderate":
+      return "warn";
+    case "minor":
+      return "ok";
+    default:
+      return "muted";
   }
 }
 
@@ -61,7 +85,6 @@ export function topObservation(observations) {
   return observations.reduce((a, b) => (b.aqi > a.aqi ? b : a));
 }
 
-// Collapse repeated searches of the same address to the most recent few.
 // `locations` is assumed newest-first (as /api/history returns it).
 export function dedupeRecentSearches(locations, limit = 8) {
   const seen = new Set();
@@ -84,9 +107,17 @@ export function groupGaugesBySite(gauges, limit = 6) {
     if (!bySite.has(g.siteId)) {
       if (bySite.size >= limit) continue; // already have `limit` distinct sites
       // Keep lat/lon so the card row can fly the map to the gauge.
-      bySite.set(g.siteId, { siteId: g.siteId, name: g.name, lat: g.lat, lon: g.lon, readings: [] });
+      bySite.set(g.siteId, {
+        siteId: g.siteId,
+        name: g.name,
+        lat: g.lat,
+        lon: g.lon,
+        readings: [],
+      });
     }
-    bySite.get(g.siteId).readings.push({ parameter: g.parameter, value: g.value });
+    bySite
+      .get(g.siteId)
+      .readings.push({ parameter: g.parameter, value: g.value });
   }
   return [...bySite.values()];
 }
@@ -109,39 +140,73 @@ export function summarizeDisasterTypes(declarations) {
 // FEMA incidentType → a dot colour, tuned for the dark theme. Covers the common
 // types; anything else falls back to neutral grey.
 const DISASTER_COLORS = {
-  Fire: '#f2994a',
-  Flood: '#4f9dff',
-  'Severe Storm': '#a55eea',
-  Hurricane: '#2dd4bf',
-  Biological: '#4fd18b',
-  Tornado: '#ff5d5d',
-  Earthquake: '#b9744f',
-  Drought: '#e0b341',
-  'Coastal Storm': '#56b4d3',
-  Snowstorm: '#9fb4d8',
-  'Severe Ice Storm': '#9fb4d8',
-  'Winter Storm': '#9fb4d8',
+  Fire: "#f2994a",
+  Flood: "#4f9dff",
+  "Severe Storm": "#a55eea",
+  Hurricane: "#2dd4bf",
+  Biological: "#4fd18b",
+  Tornado: "#ff5d5d",
+  Earthquake: "#b9744f",
+  Drought: "#e0b341",
+  "Coastal Storm": "#56b4d3",
+  Snowstorm: "#9fb4d8",
+  "Severe Ice Storm": "#9fb4d8",
+  "Winter Storm": "#9fb4d8",
 };
 export function disasterColor(type) {
-  return DISASTER_COLORS[type] ?? '#9aa3b2';
+  return DISASTER_COLORS[type] ?? "#9aa3b2";
 }
 
 // EPA AQI categories — the official 6-band scale, colors tuned to read on the
 // dark theme. `seg` is the contiguous positioning range (so the ribbon marker
 // lands correctly); `name` and `guidance` are what the reader sees.
 export const AQI_BANDS = [
-  { key: 'good', name: 'Good', color: '#4fd18b', seg: [0, 50],
-    guidance: 'Air quality is good — a fine day to be active outside.' },
-  { key: 'moderate', name: 'Moderate', color: '#f2c94c', seg: [50, 100],
-    guidance: 'Acceptable, but unusually sensitive people should ease up on long outdoor exertion.' },
-  { key: 'usg', name: 'Unhealthy for Sensitive Groups', color: '#f2994a', seg: [100, 150],
-    guidance: 'Sensitive groups — heart or lung conditions, kids, older adults — should limit prolonged outdoor exertion.' },
-  { key: 'unhealthy', name: 'Unhealthy', color: '#ff5d5d', seg: [150, 200],
-    guidance: 'Everyone may feel effects; sensitive groups should avoid prolonged outdoor exertion.' },
-  { key: 'veryunhealthy', name: 'Very Unhealthy', color: '#a55eea', seg: [200, 300],
-    guidance: 'Health alert — everyone should limit time and exertion outdoors.' },
-  { key: 'hazardous', name: 'Hazardous', color: '#b33771', seg: [300, 500],
-    guidance: 'Emergency conditions — stay indoors and keep activity low.' },
+  {
+    key: "good",
+    name: "Good",
+    color: "#4fd18b",
+    seg: [0, 50],
+    guidance: "Air quality is good — a fine day to be active outside.",
+  },
+  {
+    key: "moderate",
+    name: "Moderate",
+    color: "#f2c94c",
+    seg: [50, 100],
+    guidance:
+      "Acceptable, but unusually sensitive people should ease up on long outdoor exertion.",
+  },
+  {
+    key: "usg",
+    name: "Unhealthy for Sensitive Groups",
+    color: "#f2994a",
+    seg: [100, 150],
+    guidance:
+      "Sensitive groups — heart or lung conditions, kids, older adults — should limit prolonged outdoor exertion.",
+  },
+  {
+    key: "unhealthy",
+    name: "Unhealthy",
+    color: "#ff5d5d",
+    seg: [150, 200],
+    guidance:
+      "Everyone may feel effects; sensitive groups should avoid prolonged outdoor exertion.",
+  },
+  {
+    key: "veryunhealthy",
+    name: "Very Unhealthy",
+    color: "#a55eea",
+    seg: [200, 300],
+    guidance:
+      "Health alert — everyone should limit time and exertion outdoors.",
+  },
+  {
+    key: "hazardous",
+    name: "Hazardous",
+    color: "#b33771",
+    seg: [300, 500],
+    guidance: "Emergency conditions — stay indoors and keep activity low.",
+  },
 ];
 
 // FEMA flood risk tiers → plain-language label, a tone (reuses the badge colour
@@ -149,24 +214,27 @@ export const AQI_BANDS = [
 // the reader can act on (insurance), not zone codes.
 export const FLOOD_RISK = {
   high: {
-    label: 'High flood risk',
-    tone: 'danger',
-    blurb: 'In a Special Flood Hazard Area — the 1% annual-chance (100-year) floodplain. Flood insurance is required with a federally backed mortgage.',
+    label: "High flood risk",
+    tone: "danger",
+    blurb:
+      "In a Special Flood Hazard Area — the 1% annual-chance (100-year) floodplain. Flood insurance is required with a federally backed mortgage.",
   },
   moderate: {
-    label: 'Moderate flood risk',
-    tone: 'warn',
-    blurb: 'In the 0.2% annual-chance (500-year) floodplain. Flooding is uncommon here but possible — flood insurance isn’t required, but is worth considering.',
+    label: "Moderate flood risk",
+    tone: "warn",
+    blurb:
+      "In the 0.2% annual-chance (500-year) floodplain. Flooding is uncommon here but possible — flood insurance isn’t required, but is worth considering.",
   },
   minimal: {
-    label: 'Minimal flood risk',
-    tone: 'ok',
-    blurb: 'Outside the mapped 1% and 0.2% annual-chance floodplains. Risk is low, though never truly zero.',
+    label: "Minimal flood risk",
+    tone: "ok",
+    blurb:
+      "Outside the mapped 1% and 0.2% annual-chance floodplains. Risk is low, though never truly zero.",
   },
   undetermined: {
-    label: 'Risk undetermined',
-    tone: 'muted',
-    blurb: 'FEMA has not assessed the flood hazard at this location (Zone D).',
+    label: "Risk undetermined",
+    tone: "muted",
+    blurb: "FEMA has not assessed the flood hazard at this location (Zone D).",
   },
 };
 

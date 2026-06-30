@@ -1,16 +1,8 @@
-// Shared TTL cache for upstream responses.
-//
-// Backed by Redis so the cache survives server restarts and is shared across
-// instances. Best-effort by design: if Redis is unreachable the cache silently
-// falls back to a per-process in-memory Map, so the app keeps working (just
-// without the durable/shared benefits) — same resilience contract as persist.js.
-//
-// Each upstream passes its own TTL (see the cacheTtlMs values in services/*),
-// so caching stays correct per source — a 1-minute weather alert is never
-// served as if it were a 24-hour flood-zone lookup.
+// Best-effort upstream cache. Redis is preferred; memory fallback keeps the app running
+// when Redis is unavailable. TTLs are source-specific.
 
-import { createClient } from 'redis';
-import { config } from '../config.js';
+import { createClient } from "redis";
+import { config } from "../config.js";
 
 // ── in-memory fallback ───────────────────────────────────────────────────────
 const mem = new Map(); // key -> { value, expires }
@@ -35,18 +27,22 @@ let redisReady = false;
 
 if (config.redisUrl) {
   client = createClient({ url: config.redisUrl });
-  client.on('ready', () => {
-    if (!redisReady) console.log('[cache] redis connected');
+  client.on("ready", () => {
+    if (!redisReady) console.log("[cache] redis connected");
     redisReady = true;
   });
-  client.on('error', (err) => {
+  client.on("error", (err) => {
     // The node-redis client emits 'error' on connection loss and reconnect
     // attempts; only log the transition and drop to the in-memory fallback.
-    if (redisReady) console.warn('[cache] redis error, falling back to memory:', err.message);
+    if (redisReady)
+      console.warn("[cache] redis error, falling back to memory:", err.message);
     redisReady = false;
   });
   client.connect().catch((err) => {
-    console.warn('[cache] redis unavailable, using in-memory cache:', err.message);
+    console.warn(
+      "[cache] redis unavailable, using in-memory cache:",
+      err.message,
+    );
   });
 }
 

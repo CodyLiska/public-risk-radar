@@ -14,7 +14,6 @@ const mapEl = ref(null);
 let map = null;
 let markers = [];
 
-// Free OpenStreetMap raster basemap — no API key required.
 const STYLE = {
   version: 8,
   sources: {
@@ -28,7 +27,6 @@ const STYLE = {
   layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
 };
 
-// Phoenix as the default view center.
 const DEFAULT_CENTER = [-112.074, 33.4484];
 
 // ── marker design ───────────────────────────────────────────────────────────
@@ -44,7 +42,6 @@ const C = {
   eonet: '#475569',
 };
 
-// 24×24 line glyphs (stroke-based) drawn inside each marker.
 const GLYPHS = {
   location: '<circle cx="12" cy="12" r="6.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
   epa: '<path d="M4 21V10l5 3V10l5 3V5h3v16z"/><path d="M8 21v-3M13 21v-3"/>',
@@ -70,8 +67,6 @@ function glyphSvg(name, px, stroke = '#fff', sw = 2.2) {
   return `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${GLYPHS[name]}</svg>`;
 }
 
-// Teardrop pin with a white head holding the glyph — used for fixed, addressable
-// places (EPA facilities). Anchors at the tail tip (see placeMarker anchor).
 function pinHTML(color, glyph, s) {
   const h = s * 1.3;
   const headY = h * (14 / 39); // head circle center within the 0..39 viewBox
@@ -81,7 +76,6 @@ function pinHTML(color, glyph, s) {
   </div>`;
 }
 
-// Flat circular icon badge — used for transient / area-scoped risk layers.
 function badgeHTML(color, glyph, d) {
   return `<div style="width:${d}px;height:${d}px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center">${glyph ? glyphSvg(glyph, d * 0.56) : ''}</div>`;
 }
@@ -92,7 +86,6 @@ function dotHTML(color, d) {
   return `<div style="width:${d}px;height:${d}px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.5)"></div>`;
 }
 
-// Searched location — badge with a steady pulse ring so it reads as "you are here".
 function locHTML(color, d) {
   return `<div style="position:relative;width:${d}px;height:${d}px;display:flex;align-items:center;justify-content:center">
     <span class="prr-loc-ring" style="border-color:${color}"></span>

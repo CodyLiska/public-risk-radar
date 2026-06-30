@@ -8,6 +8,10 @@ Built around **Phoenix / Maricopa County, AZ** as the first demo geography, but 
 
 > ⚠️ Informational only. Data comes straight from public agency APIs and this tool is **not** an official source of emergency instructions or safety ratings.
 
+## Why I built this
+
+I wanted a simple way to type in an address and see nearby public-risk signals without jumping between NOAA, FEMA, USGS, EPA, and local dashboards. The first demo area is Phoenix / Maricopa County because that gave me a realistic mix of heat, flood, wildfire, air-quality, and emergency-management data to test against.
+
 ## Architecture
 
 ```
@@ -32,19 +36,19 @@ out in parallel. Only AirNow and NASA FIRMS need a key (both free). Each has one
 any single upstream failure degrades to a "source unavailable" card rather than
 breaking the page.
 
-| Source | Provides | Endpoint | Key |
-|--------|----------|----------|-----|
-| **U.S. Census Geocoder** | address → lat/lon + state/county FIPS | `geocoding.geo.census.gov/geocoder/geographies` | no |
-| **NWS** — National Weather Service | active weather alerts + point/forecast-office metadata | `api.weather.gov` (`/alerts/active`, `/points`) | no — descriptive `User-Agent` required |
-| **AirNow** (EPA/NOAA) | current air quality — AQI for O₃, PM2.5, PM10 | `airnowapi.org/aq/observation/latLong/current` | **yes (free)** |
-| **FEMA OpenFEMA** | county disaster-declaration history | `fema.gov/api/open/v2/DisasterDeclarationsSummaries` | no |
-| **FEMA NFHL** — National Flood Hazard Layer | flood zone at the point (ArcGIS layer 28) | `hazards.fema.gov/arcgis/…/NFHL/MapServer/28` | no |
-| **NIFC / WFIGS** | active wildfire incidents | `services3.arcgis.com/…/WFIGS_Incident_Locations_Current/FeatureServer/0` | no |
-| **USGS Water Services** | nearby stream-gauge readings (discharge + gage height) | `waterservices.usgs.gov/nwis/iv` | no |
-| **USGS Earthquake** (FDSN event) | recent earthquakes near the point | `earthquake.usgs.gov/fdsnws/event/1/query` | no |
-| **EPA FRS** — Facility Registry Service | nearby EPA-regulated facilities + their program interests | `geodata.epa.gov/arcgis/…/FRS_INTERESTS/MapServer/8` | no |
-| **NASA FIRMS** | active fire / thermal hotspots (satellite) | `firms.modaps.eosdis.nasa.gov/api/area/csv` | **yes (free MAP_KEY)** |
-| **NASA EONET** | active natural events (fires, storms, volcanoes…) | `eonet.gsfc.nasa.gov/api/v3/events` | no |
+| Source                                      | Provides                                                  | Endpoint                                                                  | Key                                    |
+| ------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------- |
+| **U.S. Census Geocoder**                    | address → lat/lon + state/county FIPS                     | `geocoding.geo.census.gov/geocoder/geographies`                           | no                                     |
+| **NWS** — National Weather Service          | active weather alerts + point/forecast-office metadata    | `api.weather.gov` (`/alerts/active`, `/points`)                           | no — descriptive `User-Agent` required |
+| **AirNow** (EPA/NOAA)                       | current air quality — AQI for O₃, PM2.5, PM10             | `airnowapi.org/aq/observation/latLong/current`                            | **yes (free)**                         |
+| **FEMA OpenFEMA**                           | county disaster-declaration history                       | `fema.gov/api/open/v2/DisasterDeclarationsSummaries`                      | no                                     |
+| **FEMA NFHL** — National Flood Hazard Layer | flood zone at the point (ArcGIS layer 28)                 | `hazards.fema.gov/arcgis/…/NFHL/MapServer/28`                             | no                                     |
+| **NIFC / WFIGS**                            | active wildfire incidents                                 | `services3.arcgis.com/…/WFIGS_Incident_Locations_Current/FeatureServer/0` | no                                     |
+| **USGS Water Services**                     | nearby stream-gauge readings (discharge + gage height)    | `waterservices.usgs.gov/nwis/iv`                                          | no                                     |
+| **USGS Earthquake** (FDSN event)            | recent earthquakes near the point                         | `earthquake.usgs.gov/fdsnws/event/1/query`                                | no                                     |
+| **EPA FRS** — Facility Registry Service     | nearby EPA-regulated facilities + their program interests | `geodata.epa.gov/arcgis/…/FRS_INTERESTS/MapServer/8`                      | no                                     |
+| **NASA FIRMS**                              | active fire / thermal hotspots (satellite)                | `firms.modaps.eosdis.nasa.gov/api/area/csv`                               | **yes (free MAP_KEY)**                 |
+| **NASA EONET**                              | active natural events (fires, storms, volcanoes…)         | `eonet.gsfc.nasa.gov/api/v3/events`                                       | no                                     |
 
 **Map tiles:** OpenStreetMap raster basemap (`tile.openstreetmap.org`) rendered by
 MapLibre — no key.
@@ -95,17 +99,17 @@ npm run dev:client      # http://localhost:5173  (or: cd client && npm run dev)
 
 ## API
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/health` | service + DB status |
-| `GET /api/geocode?address=...` | geocode only |
-| `GET /api/search?address=...` | full risk report (all sources) |
-| `GET /api/events?lat=&lon=&radius=` | persisted risk events near a point (PostGIS) |
-| `GET /api/history` | recently searched locations |
-| `POST /api/subscriptions` | create an alert subscription (`{ address \| lat/lon, event_type, threshold, delivery_method:"discord", delivery_target }`) |
-| `GET /api/subscriptions` | list subscriptions |
-| `PATCH /api/subscriptions/:id` | pause/resume (`{ active }`) |
-| `DELETE /api/subscriptions/:id` | remove a subscription |
+| Endpoint                            | Description                                                                                                                |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/health`                   | service + DB status                                                                                                        |
+| `GET /api/geocode?address=...`      | geocode only                                                                                                               |
+| `GET /api/search?address=...`       | full risk report (all sources)                                                                                             |
+| `GET /api/events?lat=&lon=&radius=` | persisted risk events near a point (PostGIS)                                                                               |
+| `GET /api/history`                  | recently searched locations                                                                                                |
+| `POST /api/subscriptions`           | create an alert subscription (`{ address \| lat/lon, event_type, threshold, delivery_method:"discord", delivery_target }`) |
+| `GET /api/subscriptions`            | list subscriptions                                                                                                         |
+| `PATCH /api/subscriptions/:id`      | pause/resume (`{ active }`)                                                                                                |
+| `DELETE /api/subscriptions/:id`     | remove a subscription                                                                                                      |
 
 ### Alerts
 

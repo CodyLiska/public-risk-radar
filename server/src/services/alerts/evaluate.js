@@ -1,16 +1,15 @@
-// Pure threshold evaluation for alert subscriptions.
-//
-// evaluateThreshold(eventType, threshold, sourceData) -> { crossed, value, message }
-//
-// `sourceData` is exactly what the matching services/* function returns (see
-// fetchForEventType in worker.js), so these functions stay free of network/DB and
-// are fully unit-testable. `value` is the observed reading the worker stores in
-// last_state for edge-triggered de-duplication.
+// Pure threshold evaluation. Network/DB access stays in worker.js.
 
 // NWS severity vocabulary, low → high. Unknown ranks lowest (informational).
-const SEVERITY_RANK = { unknown: 0, minor: 1, moderate: 2, severe: 3, extreme: 4 };
+const SEVERITY_RANK = {
+  unknown: 0,
+  minor: 1,
+  moderate: 2,
+  severe: 3,
+  extreme: 4,
+};
 function severityRank(s) {
-  return SEVERITY_RANK[String(s || '').toLowerCase()] ?? 0;
+  return SEVERITY_RANK[String(s || "").toLowerCase()] ?? 0;
 }
 
 // Great-circle distance in miles (for radius thresholds where the source doesn't
@@ -41,7 +40,7 @@ const evaluators = {
       crossed,
       value: worst.aqi,
       message: crossed
-        ? `Air quality AQI ${worst.aqi} (${worst.category || 'n/a'}) exceeds ${limit} near ${worst.reportingArea || 'your area'}.`
+        ? `Air quality AQI ${worst.aqi} (${worst.category || "n/a"}) exceeds ${limit} near ${worst.reportingArea || "your area"}.`
         : null,
     };
   },
@@ -51,7 +50,9 @@ const evaluators = {
     const alerts = data ?? [];
     if (!alerts.length) return notCrossed;
     const min = severityRank(threshold.severityAtLeast);
-    const worst = alerts.reduce((a, b) => (severityRank(b.severity) > severityRank(a.severity) ? b : a));
+    const worst = alerts.reduce((a, b) =>
+      severityRank(b.severity) > severityRank(a.severity) ? b : a,
+    );
     const crossed = severityRank(worst.severity) >= min;
     return {
       crossed,
@@ -78,12 +79,17 @@ const evaluators = {
   // but withinMiles can tighten it further (needs origin lat/lon on the threshold).
   wildfire(threshold, data) {
     let fires = data ?? [];
-    if (threshold.withinMiles != null && threshold.lat != null && threshold.lon != null) {
+    if (
+      threshold.withinMiles != null &&
+      threshold.lat != null &&
+      threshold.lon != null
+    ) {
       fires = fires.filter(
         (f) =>
           f.lat != null &&
           f.lon != null &&
-          distanceMiles(threshold.lat, threshold.lon, f.lat, f.lon) <= threshold.withinMiles,
+          distanceMiles(threshold.lat, threshold.lon, f.lat, f.lon) <=
+            threshold.withinMiles,
       );
     }
     const crossed = fires.length > 0;
@@ -101,7 +107,9 @@ const evaluators = {
     const quakes = data ?? [];
     if (!quakes.length) return notCrossed;
     const min = Number(threshold.minMagnitude);
-    const strongest = quakes.reduce((a, b) => ((b.magnitude ?? -Infinity) > (a.magnitude ?? -Infinity) ? b : a));
+    const strongest = quakes.reduce((a, b) =>
+      (b.magnitude ?? -Infinity) > (a.magnitude ?? -Infinity) ? b : a,
+    );
     const crossed = strongest.magnitude != null && strongest.magnitude >= min;
     return {
       crossed,
@@ -116,7 +124,8 @@ const evaluators = {
   water_gauge(threshold, data) {
     const gauges = data ?? [];
     const gauge = gauges.find(
-      (g) => g.siteId === threshold.siteId && /gage height/i.test(g.parameter || ''),
+      (g) =>
+        g.siteId === threshold.siteId && /gage height/i.test(g.parameter || ""),
     );
     if (!gauge || gauge.value == null) return notCrossed;
     const limit = Number(threshold.gageHeightGt);
