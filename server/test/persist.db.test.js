@@ -50,6 +50,9 @@ function syntheticReport() {
       earthquakes: { ok: true, data: [
         { id: `${TAG}-QUAKE`, magnitude: 3.1, place: 'test', time: '2026-05-01T00:00:00Z', lon: -112.0, lat: 33.4 },
       ] },
+      naturalEvents: { ok: true, data: [
+        { id: `${TAG}-EONET`, title: 'Test Storm', category: 'Severe Storms', time: '2026-05-15T00:00:00Z', lon: -112.0, lat: 33.4 },
+      ] },
     },
   };
 }
@@ -78,8 +81,8 @@ test('persistReport collapses duplicate-keyed sources without error', opts, asyn
     assert.equal(out.persisted.waterGauges.count, 1);
     assert.equal(out.persisted.disasters.count, 1);
     assert.equal(out.persisted.epaFacilities.count, 1);
-    // risk_events: 1 alert + 1 disaster + 1 quake (all distinct source ids).
-    assert.equal(out.persisted.riskEvents.count, 3);
+    // risk_events: 1 alert + 1 disaster + 1 quake + 1 natural (all distinct source ids).
+    assert.equal(out.persisted.riskEvents.count, 4);
     assert.ok(out.locationId, 'a location row should be inserted');
   } finally {
     await cleanup();
@@ -102,7 +105,7 @@ test('persistReport is idempotent across a re-search (no duplication)', opts, as
     const events = await pool.query('SELECT count(*)::int n FROM risk_events WHERE source_id LIKE $1', [`${TAG}%`]);
     assert.equal(gauges.rows[0].n, 1);
     assert.equal(disasters.rows[0].n, 1);
-    assert.equal(events.rows[0].n, 3);
+    assert.equal(events.rows[0].n, 4);
   } finally {
     await cleanup();
   }

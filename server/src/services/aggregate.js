@@ -7,6 +7,8 @@ import { getNearbyWildfires } from './nifc.js';
 import { getNearbyGauges } from './usgsWater.js';
 import { getRecentQuakes } from './usgsQuake.js';
 import { getNearbyFacilities } from './epaEcho.js';
+import { getActiveFires } from './nasaFirms.js';
+import { getNaturalEvents } from './nasaEonet.js';
 
 // Resolve a settled promise into a uniform { ok, data, error } shape so a single
 // failing upstream source never breaks the whole response.
@@ -14,6 +16,23 @@ import { getNearbyFacilities } from './epaEcho.js';
 export function settle(result) {
   if (result.status === 'fulfilled') return { ok: true, data: result.value };
   return { ok: false, error: String(result.reason?.message || result.reason) };
+}
+
+// Guardrail: cap how long any single source can hold up the whole report. The
+// httpClient already retries (up to ~30s worst case for a stuck upstream), and
+// Promise.allSettled waits for the slowest — so one hung source could stall the
+// page. This bounds each source's wall time; a laggard degrades to "unavailable"
+// (the resilience contract) instead of dragging the report out. Set generously
+// so legitimately data-heavy sources (USGS gauges / EPA paging in dense cities,
+// ~5-7s) still complete — this only catches pathological hangs.
+const SOURCE_DEADLINE_MS = 8000;
+// (exported for tests)
+export function withDeadline(promise, ms, label) {
+  let timer;
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
 }
 
 /**
@@ -37,18 +56,26 @@ export async function buildRiskReport(address) {
     gauges,
     quakes,
     facilities,
+    activeFires,
+    naturalEvents,
   ] = await Promise.allSettled([
-    getActiveAlerts(lat, lon),
-    getPoint(lat, lon),
-    getCurrentAqi(lat, lon),
-    countyParts
-      ? getDisasterHistory(countyParts.stateFips, countyParts.countyFips)
-      : Promise.resolve([]),
-    getFloodZone(lat, lon),
-    getNearbyWildfires(lat, lon),
-    getNearbyGauges(lat, lon),
-    getRecentQuakes(lat, lon),
-    getNearbyFacilities(lat, lon),
+    withDeadline(getActiveAlerts(lat, lon), SOURCE_DEADLINE_MS, 'weatherAlerts'),
+    withDeadline(getPoint(lat, lon), SOURCE_DEADLINE_MS, 'weatherPoint'),
+    withDeadline(getCurrentAqi(lat, lon), SOURCE_DEADLINE_MS, 'airQuality'),
+    withDeadline(
+      countyParts
+        ? getDisasterHistory(countyParts.stateFips, countyParts.countyFips)
+        : Promise.resolve([]),
+      SOURCE_DEADLINE_MS,
+      'disasterHistory',
+    ),
+    withDeadline(getFloodZone(lat, lon), SOURCE_DEADLINE_MS, 'floodZone'),
+    withDeadline(getNearbyWildfires(lat, lon), SOURCE_DEADLINE_MS, 'wildfires'),
+    withDeadline(getNearbyGauges(lat, lon), SOURCE_DEADLINE_MS, 'waterGauges'),
+    withDeadline(getRecentQuakes(lat, lon), SOURCE_DEADLINE_MS, 'earthquakes'),
+    withDeadline(getNearbyFacilities(lat, lon), SOURCE_DEADLINE_MS, 'epaFacilities'),
+    withDeadline(getActiveFires(lat, lon), SOURCE_DEADLINE_MS, 'activeFires'),
+    withDeadline(getNaturalEvents(lat, lon), SOURCE_DEADLINE_MS, 'naturalEvents'),
   ]);
 
   return {
@@ -64,15 +91,17 @@ export async function buildRiskReport(address) {
       waterGauges: settle(gauges),
       earthquakes: settle(quakes),
       epaFacilities: settle(facilities),
+      activeFires: settle(activeFires),
+      naturalEvents: settle(naturalEvents),
     },
-    timeline: buildTimeline({ alerts, disasters, wildfires, quakes }),
+    timeline: buildTimeline({ alerts, disasters, wildfires, quakes, naturalEvents }),
     generatedAt: new Date().toISOString(),
   };
 }
 
 // Merge time-stamped events from several sources into one sorted list.
 // (exported for tests)
-export function buildTimeline({ alerts, disasters, wildfires, quakes }) {
+export function buildTimeline({ alerts, disasters, wildfires, quakes, naturalEvents = { status: 'rejected' } }) {
   const events = [];
 
   if (alerts.status === 'fulfilled') {
@@ -119,6 +148,18 @@ export function buildTimeline({ alerts, disasters, wildfires, quakes }) {
         time: q.time,
         lat: q.lat ?? null,
         lon: q.lon ?? null,
+      });
+    }
+  }
+  if (naturalEvents.status === 'fulfilled') {
+    for (const n of naturalEvents.value) {
+      events.push({
+        type: 'natural',
+        source: 'eonet',
+        title: `${n.category}: ${n.title}`,
+        time: n.time,
+        lat: n.lat ?? null,
+        lon: n.lon ?? null,
       });
     }
   }

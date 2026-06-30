@@ -34,13 +34,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 Enter a U.S. address → see the public risks near it (weather alerts, AQI, flood zone,
-wildfires, stream gauges, earthquakes, EPA facilities, county disaster history) on one
-MapLibre map. Backend geocodes via Census, then fans out to 9 sources in parallel
-(`Promise.allSettled`) so one failing upstream never breaks the page. Results are served
-live, persisted into PostGIS, and cached upstream in Redis. Opt-in alerts deliver to a
-Discord webhook via a background interval worker. First demo geography: Phoenix / Maricopa.
+wildfires, stream gauges, earthquakes, EPA facilities, county disaster history, NASA
+FIRMS active-fire detections, NASA EONET natural events) on one MapLibre map. Backend
+geocodes via Census, then fans out to 11 sources in parallel (`Promise.allSettled`) so
+one failing upstream never breaks the page. Results are served live, persisted into
+PostGIS, and cached upstream in Redis. Opt-in alerts deliver to a Discord webhook via a
+background interval worker. First demo geography: Phoenix / Maricopa.
 
 GitHub: `github.com/CodyLiska/public-risk-radar`.
+
+> **Keys:** AirNow (`AIRNOW_API_KEY`) and NASA FIRMS (`FIRMS_MAP_KEY`) need a free key;
+> both degrade gracefully when unset. EONET needs no key.
 
 ## Development Commands
 

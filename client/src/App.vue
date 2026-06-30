@@ -112,6 +112,10 @@ async function loadSavedEvents() {
 
 function runFromHistory(item) {
   address.value = item.address;
+  // Move the map to the known location immediately (history rows carry lat/lon)
+  // so the click feels instant — the full live report can take several seconds
+  // for an uncached address, and we don't want the map to wait on it.
+  if (item.lat != null && item.lon != null) mapRef.value?.flyTo(item.lat, item.lon);
   onSearch();
 }
 
@@ -304,6 +308,53 @@ const AQI_RIBBON = `linear-gradient(to right, ${AQI_BANDS
             <div v-else v-for="w in wildfires" :key="w.name + (w.discovered || '')" class="row">
               <span>{{ w.name }}</span>
               <span class="muted">{{ fireMeta(w) }}</span>
+            </div>
+          </div>
+
+          <!-- Active fire detections (NASA FIRMS) — key-gated like AQI -->
+          <div class="card">
+            <h3>Active Fire Detections (NASA FIRMS)</h3>
+            <template v-if="s.activeFires?.ok">
+              <p v-if="!s.activeFires.data.configured" class="muted">Set FIRMS_MAP_KEY to enable.</p>
+              <p v-else-if="!s.activeFires.data.fires.length" class="muted">No active detections nearby.</p>
+              <template v-else>
+                <p class="muted">{{ s.activeFires.data.fires.length }} detections (last 48 h) — nearest 8 shown</p>
+                <div
+                  v-for="(f, i) in s.activeFires.data.fires.slice(0, 8)"
+                  :key="i"
+                  class="row row-click"
+                  role="button"
+                  tabindex="0"
+                  title="Show on map"
+                  @click="focusEvent(f)"
+                  @keydown.enter="focusEvent(f)"
+                >
+                  <span>{{ Math.round(f.distanceMiles) }} mi · {{ f.daynight === 'N' ? 'night' : 'day' }}</span>
+                  <span class="muted">{{ f.frp != null ? f.frp.toFixed(0) + ' MW' : '' }}</span>
+                </div>
+              </template>
+            </template>
+            <p v-else class="source-error">Source unavailable.</p>
+          </div>
+
+          <!-- Natural events (NASA EONET) — keyless array -->
+          <div class="card">
+            <h3>Natural Events (NASA EONET)</h3>
+            <p v-if="s.naturalEvents?.ok && !s.naturalEvents.data.length" class="muted">None active nearby.</p>
+            <p v-else-if="!s.naturalEvents?.ok" class="source-error">Source unavailable.</p>
+            <div
+              v-else
+              v-for="(n, i) in s.naturalEvents.data.slice(0, 8)"
+              :key="i"
+              class="row row-click"
+              role="button"
+              tabindex="0"
+              title="Show on map"
+              @click="focusEvent(n)"
+              @keydown.enter="focusEvent(n)"
+            >
+              <span>{{ n.title }}<span class="muted"> · {{ n.category }}</span></span>
+              <span class="muted">{{ fmtDate(n.time) }}</span>
             </div>
           </div>
 

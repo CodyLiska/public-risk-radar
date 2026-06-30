@@ -192,6 +192,14 @@ async function upsertRiskEvents(sources) {
         q.time, null, q.lon, q.lat, q]);
     }
   }
+  if (sources.naturalEvents?.ok) {
+    // EONET only serves status=open, so a closed event vanishes from the live
+    // feed — persisting it is the only way it survives in the /api/events history.
+    for (const n of sources.naturalEvents.data) {
+      rows.push(['natural', 'eonet', n.id, `${n.category}: ${n.title}`, null,
+        n.time, null, n.lon, n.lat, n]);
+    }
+  }
 
   // require a source_id, then collapse on the (source, source_id) conflict key
   const valid = dedupeBy(rows.filter((r) => r[2]), (r) => `${r[1]}|${r[2]}`);

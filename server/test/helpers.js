@@ -14,7 +14,14 @@ let installed = false;
  */
 export function stubFetchJson(json, { ok = true, status = 200 } = {}) {
   const original = globalThis.fetch;
-  globalThis.fetch = async () => ({ ok, status, json: async () => json });
+  // `text:` lets the same stub serve fetchText (CSV sources like FIRMS). A string
+  // payload is returned as-is; anything else is JSON-stringified.
+  globalThis.fetch = async () => ({
+    ok,
+    status,
+    json: async () => json,
+    text: async () => (typeof json === 'string' ? json : JSON.stringify(json)),
+  });
   installed = true;
   return () => {
     globalThis.fetch = original;

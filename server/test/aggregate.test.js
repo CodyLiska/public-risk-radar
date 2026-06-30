@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { settle, buildTimeline } from '../src/services/aggregate.js';
+import { settle, buildTimeline, withDeadline } from '../src/services/aggregate.js';
 
 // settle() normalizes a Promise.allSettled result into { ok, data, error } so a
 // single failing upstream never breaks the response.
@@ -20,6 +20,29 @@ test('settle wraps a rejected result as not-ok with an error string', () => {
 test('settle stringifies a non-Error rejection reason', () => {
   const out = settle({ status: 'rejected', reason: 'plain string' });
   assert.deepEqual(out, { ok: false, error: 'plain string' });
+});
+
+// withDeadline caps how long a single source can hold up the report — a laggard
+// rejects (→ settle marks it not-ok) instead of stalling Promise.allSettled.
+test('withDeadline passes through a value that resolves in time', async () => {
+  const out = await withDeadline(Promise.resolve(42), 1000, 'fast');
+  assert.equal(out, 42);
+});
+
+test('withDeadline rejects with a labeled timeout when the source is too slow', async () => {
+  const slow = new Promise((resolve) => setTimeout(() => resolve('late'), 1000));
+  await assert.rejects(
+    () => withDeadline(slow, 20, 'slowSource'),
+    /slowSource timed out after 20ms/,
+  );
+});
+
+test('settle turns a withDeadline timeout into an ok:false source', async () => {
+  const slow = new Promise((resolve) => setTimeout(() => resolve('late'), 1000));
+  const [result] = await Promise.allSettled([withDeadline(slow, 20, 'gauges')]);
+  const out = settle(result);
+  assert.equal(out.ok, false);
+  assert.match(out.error, /gauges timed out/);
 });
 
 // buildTimeline merges time-stamped events from several sources, drops undated
@@ -52,6 +75,32 @@ test('buildTimeline carries lat/lon for fires and quakes only (not alerts/disast
   assert.equal(byType.quake.lon, -112.3);
   assert.equal(byType.weather.lat, undefined); // area-based alert, no point
   assert.equal(byType.disaster.lat, undefined); // county-level, no point
+});
+
+test('buildTimeline includes natural (EONET) events carrying lat/lon', () => {
+  const out = buildTimeline({
+    alerts: fulfilled([]),
+    disasters: fulfilled([]),
+    wildfires: fulfilled([]),
+    quakes: fulfilled([]),
+    naturalEvents: fulfilled([{ category: 'Wildfires', title: 'Big Fire', time: '2026-06-01T00:00:00Z', lat: 33.5, lon: -112.1 }]),
+  });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].type, 'natural');
+  assert.equal(out[0].title, 'Wildfires: Big Fire');
+  assert.equal(out[0].lat, 33.5);
+  assert.equal(out[0].lon, -112.1);
+});
+
+test('buildTimeline defaults naturalEvents when the caller omits it', () => {
+  const out = buildTimeline({
+    alerts: fulfilled([]),
+    disasters: fulfilled([{ incidentType: 'Flood', title: 'Big Flood', declarationDate: '2026-01-01T00:00:00Z' }]),
+    wildfires: fulfilled([]),
+    quakes: fulfilled([]),
+  });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].type, 'disaster');
 });
 
 test('buildTimeline drops events without a time', () => {

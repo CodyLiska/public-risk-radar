@@ -27,7 +27,7 @@ parallel (`Promise.allSettled`) so one failing upstream never breaks the page.
 ### Data sources
 
 Every risk layer comes from a public U.S. government API, queried live and fanned
-out in parallel. Only AirNow needs a key (free). Each has one client in
+out in parallel. Only AirNow and NASA FIRMS need a key (both free). Each has one client in
 `server/src/services/*.js`; `aggregate.js` runs them with `Promise.allSettled`, so
 any single upstream failure degrades to a "source unavailable" card rather than
 breaking the page.
@@ -43,6 +43,8 @@ breaking the page.
 | **USGS Water Services** | nearby stream-gauge readings (discharge + gage height) | `waterservices.usgs.gov/nwis/iv` | no |
 | **USGS Earthquake** (FDSN event) | recent earthquakes near the point | `earthquake.usgs.gov/fdsnws/event/1/query` | no |
 | **EPA FRS** — Facility Registry Service | nearby EPA-regulated facilities + their program interests | `geodata.epa.gov/arcgis/…/FRS_INTERESTS/MapServer/8` | no |
+| **NASA FIRMS** | active fire / thermal hotspots (satellite) | `firms.modaps.eosdis.nasa.gov/api/area/csv` | **yes (free MAP_KEY)** |
+| **NASA EONET** | active natural events (fires, storms, volcanoes…) | `eonet.gsfc.nasa.gov/api/v3/events` | no |
 
 **Map tiles:** OpenStreetMap raster basemap (`tile.openstreetmap.org`) rendered by
 MapLibre — no key.

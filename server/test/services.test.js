@@ -11,6 +11,9 @@ import { getRecentQuakes } from '../src/services/usgsQuake.js';
 import { getNearbyWildfires } from '../src/services/nifc.js';
 import { getFloodZone } from '../src/services/femaNfhl.js';
 import { getCurrentAqi } from '../src/services/airnow.js';
+import { getActiveFires } from '../src/services/nasaFirms.js';
+import { getNaturalEvents } from '../src/services/nasaEonet.js';
+import { config } from '../src/config.js';
 
 // These tests guard the field-projection in each service — the README calls out
 // upstream field names as a known rough edge, so a mapping regression should
@@ -319,6 +322,65 @@ test('getCurrentAqi maps observations when a key is configured', async () => {
     assert.equal(out.observations[0].aqi, 88);
     assert.equal(out.observations[0].category, 'Moderate');
     assert.equal(out.observations[0].observedAt, '2026-06-03T09:00:00');
+  } finally {
+    restore();
+  }
+});
+
+// ── NASA FIRMS (CSV, key-gated) ───────────────────────────────────────────────
+test('getActiveFires parses CSV by header and projects fire fields', async () => {
+  const csv =
+    'latitude,longitude,bright_ti4,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_ti5,frp,daynight\n' +
+    '33.5,-112.1,320,0.4,0.4,2026-06-29,2030,N,VIIRS,n,2,290,12.3,N';
+  const restore = stubFetchJson(csv);
+  const mapKey = config.firmsMapKey;
+  config.firmsMapKey = 'test-map-key'; // configured path
+  try {
+    const out = await getActiveFires(33.0, -112.0);
+    assert.equal(out.configured, true);
+    assert.equal(out.fires.length, 1);
+    const [f] = out.fires;
+    assert.equal(f.lat, 33.5);
+    assert.equal(f.lon, -112.1);
+    assert.equal(f.confidence, 'n');
+    assert.equal(f.frp, 12.3);
+    assert.equal(f.daynight, 'N');
+    assert.equal(f.acquired, '2026-06-29T20:30:00Z'); // acq_time HHMM → ISO
+    assert.ok(f.distanceMiles > 0, 'computes distance from the query point');
+  } finally {
+    config.firmsMapKey = mapKey;
+    restore();
+  }
+});
+
+test('getActiveFires degrades to { configured: false } with no key', async () => {
+  const mapKey = config.firmsMapKey;
+  config.firmsMapKey = '';
+  try {
+    assert.deepEqual(await getActiveFires(34.2, -113.2), { configured: false, fires: [] });
+  } finally {
+    config.firmsMapKey = mapKey;
+  }
+});
+
+// ── NASA EONET (JSON, keyless) ────────────────────────────────────────────────
+test('getNaturalEvents maps the latest geometry point and category title', async () => {
+  const restore = stubFetchJson({
+    events: [{
+      id: 'EONET_1', title: 'Big Fire',
+      categories: [{ id: 'wildfires', title: 'Wildfires' }],
+      geometry: [{ date: '2026-06-01T00:00:00Z', type: 'Point', coordinates: [-112.1, 33.5] }],
+      sources: [{ url: 'https://eonet/EONET_1' }],
+    }],
+  });
+  try {
+    const [n] = await getNaturalEvents(33.4, -112.4);
+    assert.equal(n.id, 'EONET_1');
+    assert.equal(n.title, 'Big Fire');
+    assert.equal(n.category, 'Wildfires');
+    assert.equal(n.time, '2026-06-01T00:00:00Z');
+    assert.equal(n.lat, 33.5); // GeoJSON [lon, lat] → swapped
+    assert.equal(n.lon, -112.1);
   } finally {
     restore();
   }

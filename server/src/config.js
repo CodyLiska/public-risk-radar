@@ -17,6 +17,7 @@ export const config = {
   // cache only); an unset var still falls back to the local default.
   redisUrl: process.env.REDIS_URL ?? 'redis://localhost:6379',
   airnowApiKey: process.env.AIRNOW_API_KEY || '',
+  firmsMapKey: process.env.FIRMS_MAP_KEY || '',
   // Background alert worker. Disabled by default so tests/CI and a plain API run
   // don't spin a loop; enable per-environment in .env.
   alertsEnabled: process.env.ALERTS_ENABLED === 'true',

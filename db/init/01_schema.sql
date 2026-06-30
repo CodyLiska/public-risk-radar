@@ -21,8 +21,8 @@ CREATE INDEX IF NOT EXISTS locations_geom_idx ON locations USING GIST (geom);
 -- Every source can be normalized into a row here for the timeline view.
 CREATE TABLE IF NOT EXISTS risk_events (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    type        TEXT NOT NULL,           -- weather | flood | fire | air | water | quake | environmental | disaster
-    source      TEXT NOT NULL,           -- nws | airnow | fema | nifc | usgs_water | usgs_quake | epa_echo
+    type        TEXT NOT NULL,           -- weather | flood | fire | air | water | quake | environmental | disaster | natural
+    source      TEXT NOT NULL,           -- nws | airnow | fema | nifc | usgs_water | usgs_quake | epa_echo | eonet
     source_id   TEXT,                    -- upstream id, for dedupe
     title       TEXT,
     severity    TEXT,
