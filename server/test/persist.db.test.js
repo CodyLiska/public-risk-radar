@@ -31,10 +31,10 @@ function syntheticReport() {
   return {
     location: { lat: 33.4, lon: -112.0, stateFips: '04', countyFips: '04013', tract: TAG },
     sources: {
-      epaFacilities: { ok: true, data: [
+      epaFacilities: { ok: true, data: { total: 1, facilities: [
         { registryId: `${TAG}-REG`, name: 'Test Facility', address: '1 Main', lat: 33.4, lon: -112.0, programs: ['TRI'] },
         { registryId: `${TAG}-REG`, name: 'Test Facility (dup)', lat: 33.4, lon: -112.0, programs: ['NPDES'] }, // dup key
-      ] },
+      ] } },
       waterGauges: { ok: true, data: [
         { siteId: `${TAG}-SITE`, name: 'Gauge A', lat: 33.4, lon: -112.0, parameter: 'Discharge (cfs)', value: 10, observedAt: '2026-06-03T12:00:00Z' },
         { siteId: `${TAG}-SITE`, name: 'Gauge A (param 2)', lat: 33.4, lon: -112.0, parameter: 'Gage height (ft)', value: 2, observedAt: '2026-06-03T12:00:00Z' }, // dup key

@@ -11,9 +11,20 @@ function isHighRisk(zone) {
   return /^(A|V)/i.test(zone || '');
 }
 
+// Three-tier risk from the zone + subtype. Zone X collapses two very different
+// realities: *shaded* X (the 0.2% annual-chance / 500-year floodplain, or areas
+// behind a levee) is moderate risk, while *unshaded* X is minimal — the subtype
+// is what tells them apart. Zone D means FEMA hasn't assessed the location.
+function classifyRisk(zone, subtype) {
+  if (isHighRisk(zone)) return 'high';
+  if (/0\.2 PCT ANNUAL CHANCE|REDUCED FLOOD RISK DUE TO LEVEE/i.test(subtype || '')) return 'moderate';
+  if (/^D$/i.test(zone || '')) return 'undetermined';
+  return 'minimal';
+}
+
 /**
  * Look up the flood zone at a point.
- * @returns {Promise<{ floodZone: string|null, zoneSubtype: string|null, highRisk: boolean, inMappedArea: boolean }>}
+ * @returns {Promise<{ floodZone: string|null, zoneSubtype: string|null, highRisk: boolean, riskLevel: 'high'|'moderate'|'minimal'|'undetermined'|null, inMappedArea: boolean }>}
  */
 export async function getFloodZone(lat, lon) {
   const params = new URLSearchParams({
@@ -29,12 +40,13 @@ export async function getFloodZone(lat, lon) {
 
   const attrs = data?.features?.[0]?.attributes;
   if (!attrs) {
-    return { floodZone: null, zoneSubtype: null, highRisk: false, inMappedArea: false };
+    return { floodZone: null, zoneSubtype: null, highRisk: false, riskLevel: null, inMappedArea: false };
   }
   return {
     floodZone: attrs.FLD_ZONE ?? null,
     zoneSubtype: attrs.ZONE_SUBTY ?? null,
     highRisk: isHighRisk(attrs.FLD_ZONE),
+    riskLevel: classifyRisk(attrs.FLD_ZONE, attrs.ZONE_SUBTY),
     inMappedArea: true,
   };
 }

@@ -1,4 +1,5 @@
 import { fetchJson } from '../lib/httpClient.js';
+import { haversineMiles } from '../lib/geo.js';
 
 // NIFC / WFIGS current wildfire incident locations — ArcGIS FeatureServer. No key.
 // https://data-nifc.opendata.arcgis.com/
@@ -24,16 +25,19 @@ export async function getNearbyWildfires(lat, lon, radiusMiles = 25) {
   });
   const data = await fetchJson(`${LAYER}?${params}`, { cacheTtlMs: 15 * 60 * 1000 });
 
-  return (data?.features ?? []).map((f) => ({
-    name: f.attributes.IncidentName,
-    cause: f.attributes.FireCause,
-    acres: f.attributes.DailyAcres,
-    percentContained: f.attributes.PercentContained,
-    discovered: f.attributes.FireDiscoveryDateTime
-      ? new Date(f.attributes.FireDiscoveryDateTime).toISOString()
-      : null,
-    state: f.attributes.POOState,
-    lat: f.geometry?.y ?? null,
-    lon: f.geometry?.x ?? null,
-  }));
+  return (data?.features ?? [])
+    .map((f) => ({
+      name: f.attributes.IncidentName,
+      cause: f.attributes.FireCause,
+      acres: f.attributes.DailyAcres,
+      percentContained: f.attributes.PercentContained,
+      discovered: f.attributes.FireDiscoveryDateTime
+        ? new Date(f.attributes.FireDiscoveryDateTime).toISOString()
+        : null,
+      state: f.attributes.POOState,
+      lat: f.geometry?.y ?? null,
+      lon: f.geometry?.x ?? null,
+      distanceMiles: f.geometry ? haversineMiles(lat, lon, f.geometry.y, f.geometry.x) : null,
+    }))
+    .sort((a, b) => (a.distanceMiles ?? Infinity) - (b.distanceMiles ?? Infinity));
 }

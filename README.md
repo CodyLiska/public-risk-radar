@@ -24,19 +24,28 @@ public-risk-radar/
 The backend geocodes the address (Census), then fans out to every source in
 parallel (`Promise.allSettled`) so one failing upstream never breaks the page.
 
-### Data sources wired
+### Data sources
 
-| Source | What | Key needed |
-|--------|------|-----------|
-| Census Geocoder | address → lat/lon + county FIPS | no |
-| NWS | active weather alerts | no (User-Agent) |
-| AirNow | current AQI | **yes** (free) |
-| FEMA OpenFEMA | county disaster history | no |
-| FEMA NFHL | flood zone at point | no |
-| NIFC/WFIGS | active wildfire incidents | no |
-| USGS Water | nearby stream gauges | no |
-| USGS Earthquake | recent quakes | no |
-| EPA ECHO | nearby regulated facilities | no |
+Every risk layer comes from a public U.S. government API, queried live and fanned
+out in parallel. Only AirNow needs a key (free). Each has one client in
+`server/src/services/*.js`; `aggregate.js` runs them with `Promise.allSettled`, so
+any single upstream failure degrades to a "source unavailable" card rather than
+breaking the page.
+
+| Source | Provides | Endpoint | Key |
+|--------|----------|----------|-----|
+| **U.S. Census Geocoder** | address → lat/lon + state/county FIPS | `geocoding.geo.census.gov/geocoder/geographies` | no |
+| **NWS** — National Weather Service | active weather alerts + point/forecast-office metadata | `api.weather.gov` (`/alerts/active`, `/points`) | no — descriptive `User-Agent` required |
+| **AirNow** (EPA/NOAA) | current air quality — AQI for O₃, PM2.5, PM10 | `airnowapi.org/aq/observation/latLong/current` | **yes (free)** |
+| **FEMA OpenFEMA** | county disaster-declaration history | `fema.gov/api/open/v2/DisasterDeclarationsSummaries` | no |
+| **FEMA NFHL** — National Flood Hazard Layer | flood zone at the point (ArcGIS layer 28) | `hazards.fema.gov/arcgis/…/NFHL/MapServer/28` | no |
+| **NIFC / WFIGS** | active wildfire incidents | `services3.arcgis.com/…/WFIGS_Incident_Locations_Current/FeatureServer/0` | no |
+| **USGS Water Services** | nearby stream-gauge readings (discharge + gage height) | `waterservices.usgs.gov/nwis/iv` | no |
+| **USGS Earthquake** (FDSN event) | recent earthquakes near the point | `earthquake.usgs.gov/fdsnws/event/1/query` | no |
+| **EPA FRS** — Facility Registry Service | nearby EPA-regulated facilities + their program interests | `geodata.epa.gov/arcgis/…/FRS_INTERESTS/MapServer/8` | no |
+
+**Map tiles:** OpenStreetMap raster basemap (`tile.openstreetmap.org`) rendered by
+MapLibre — no key.
 
 ## Quick start
 
@@ -45,17 +54,38 @@ parallel (`Promise.allSettled`) so one failing upstream never breaks the page.
 cp .env.example .env
 #    then add a free AirNow key: https://docs.airnowapi.org/account/request/
 
-# 2. database
-docker compose up -d db redis      # schema loads automatically on first run
+# 2. install dependencies (once)
+npm install                        # root (dev orchestration)
+cd server && npm install && cd ..
+cd client && npm install && cd ..
 
-# 3. backend
-cd server && npm install && npm run dev      # http://localhost:3001
-
-# 4. frontend (new terminal)
-cd client && npm install && npm run dev      # http://localhost:5173
+# 3. start everything (Docker Desktop must be running)
+npm run dev
 ```
 
+`npm run dev` starts the Postgres/PostGIS + Redis containers (waiting for them to
+pass their healthchecks), then runs the backend (http://localhost:3001) and
+frontend (http://localhost:5173) together in one terminal with prefixed logs.
+The DB schema loads automatically on the container's first run. A single
+`Ctrl-C` stops both dev servers.
+
 Open http://localhost:5173 and search an address (try `Phoenix, AZ`).
+
+### Running the servers separately
+
+`npm run dev` is just a convenience wrapper. To run the pieces in their own
+terminals (e.g. to read one server's logs in isolation):
+
+```bash
+# database (once, Docker Desktop must be running)
+docker compose up -d db redis
+
+# backend
+npm run dev:server      # http://localhost:3001  (or: cd server && npm run dev)
+
+# frontend (new terminal)
+npm run dev:client      # http://localhost:5173  (or: cd client && npm run dev)
+```
 
 > Runs natively on both Intel/Windows (amd64) and Apple Silicon (arm64) — the
 > Postgres/PostGIS image (`imresamu/postgis`) is multi-arch, so no per-machine

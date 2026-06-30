@@ -45,11 +45,17 @@ GitHub: `github.com/CodyLiska/public-risk-radar`.
 ## Development Commands
 
 ```bash
+npm run dev                             # one command: docker --wait db+redis, then API+client (concurrently)
+# — or run the pieces separately —
 docker compose up -d db redis          # Postgres/PostGIS + Redis
 cd server && npm install && npm run dev # API on :3001 (node --watch)
 cd client && npm install && npm run dev # Vite on :5173 (proxies /api → :3001)
 npm test                                # repo root: server (node:test) + client (vitest)
 ```
+
+- `node --watch` can silently serve **stale server code** (esp. on WSL / rapid saves) —
+  if a server change "doesn't take", `touch server/src/index.js` (entry point = reliable
+  nudge) and verify against the live endpoint, not just tests.
 
 - Server suite is hermetic (`REDIS_URL=` forces in-memory cache; dummy AirNow key).
   DB-integration tests auto-skip with no Postgres. **Always keep `REDIS_URL=` for tests**
@@ -66,7 +72,8 @@ npm test                                # repo root: server (node:test) + client
 
 - `GET /api/health` — service + DB status
 - `GET /api/geocode?address=` — geocode only
-- `GET /api/search?address=` — full risk report (all sources), persists best-effort
+- `GET /api/search?address=` — full risk report (all sources); responds first, then persists fire-and-forget (never blocks the response)
+- `GET /api/wildfires?lat=&lon=&radius=` — live wildfires at a chosen radius (1–100 mi), nearest-first with `distanceMiles` (powers the card's radius dropdown)
 - `GET /api/events?lat=&lon=&radius=` — persisted risk events near a point (PostGIS)
 - `GET /api/history` — recently searched locations
 - `POST|GET /api/subscriptions`, `PATCH|DELETE /api/subscriptions/:id` — alert CRUD

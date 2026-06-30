@@ -103,6 +103,10 @@ export function buildTimeline({ alerts, disasters, wildfires, quakes }) {
         source: 'nifc',
         title: `Wildfire: ${w.name}`,
         time: w.discovered,
+        // Carry coords so the timeline row can fly the map there. Fires/quakes
+        // have a point; alerts (zones) and disasters (county) don't.
+        lat: w.lat ?? null,
+        lon: w.lon ?? null,
       });
     }
   }
@@ -113,6 +117,8 @@ export function buildTimeline({ alerts, disasters, wildfires, quakes }) {
         source: 'usgs_quake',
         title: `M${q.magnitude} — ${q.place}`,
         time: q.time,
+        lat: q.lat ?? null,
+        lon: q.lon ?? null,
       });
     }
   }

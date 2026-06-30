@@ -87,10 +87,42 @@ header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
   letter-spacing: 0.04em;
   color: var(--muted);
 }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.card-head h3 { margin: 0 0 8px; }
+.radius-select {
+  margin-bottom: 8px;
+  padding: 3px 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+}
+.radius-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .card .big { font-size: 22px; font-weight: 700; }
 
 .row { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
 .row:last-child { border-bottom: none; }
+/* Rows that move the map when clicked */
+.row-click { cursor: pointer; margin: 0 -6px; padding-left: 6px; padding-right: 6px; border-radius: 6px; }
+.row-click:hover { background: var(--panel-2); }
+.row-click:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Transient "ping" ring dropped at a point the map just flew to (see RiskMap.flyTo) */
+.map-pulse {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #4fd18b; border: 2px solid #fff;
+  animation: prr-pulse 0.9s ease-out 2;
+  pointer-events: none;
+}
+@keyframes prr-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(79, 209, 139, 0.7); }
+  100% { box-shadow: 0 0 0 24px rgba(79, 209, 139, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-pulse { animation: none; box-shadow: 0 0 0 7px rgba(79, 209, 139, 0.4); }
+}
 .muted { color: var(--muted); }
 
 .badge {
@@ -138,3 +170,57 @@ header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
 .recent-item:hover { border-color: var(--accent); }
 .recent-addr { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .recent-item .muted { font-size: 11px; flex-shrink: 0; }
+
+/* Air Quality — value + 6-band scale ribbon */
+.aqi-headline { display: flex; align-items: center; gap: 12px; }
+.aqi-value { font-size: 34px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
+.aqi-category { font-size: 15px; font-weight: 700; line-height: 1.2; }
+.aqi-meta { font-size: 12px; margin-top: 2px; }
+.aqi-guidance { font-size: 12.5px; line-height: 1.45; margin: 10px 0 14px; }
+.aqi-ribbon { position: relative; height: 10px; }
+.aqi-ribbon-track { position: absolute; inset: 0; border-radius: 999px; }
+.aqi-marker {
+  position: absolute; top: -3px; bottom: -3px; width: 2px;
+  background: var(--text); border-radius: 2px;
+  transform: translateX(-1px);
+  box-shadow: 0 0 0 2px var(--panel); /* halo so the needle reads over any band */
+  transition: left 0.4s ease;
+}
+.aqi-marker::before {
+  content: ''; position: absolute; top: -6px; left: 1px;
+  width: 8px; height: 8px; border-radius: 999px;
+  background: var(--text); border: 2px solid var(--panel);
+  transform: translateX(-50%);
+}
+.aqi-axis { display: flex; justify-content: space-between; margin-top: 7px; font-size: 9.5px; color: var(--muted); }
+.aqi-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.aqi-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 999px;
+  background: var(--panel-2); border: 1px solid var(--border);
+  font-size: 11px; color: var(--muted);
+}
+.aqi-chip.dominant { color: var(--text); font-weight: 600; }
+.aqi-dot { width: 7px; height: 7px; border-radius: 999px; flex: none; }
+@media (prefers-reduced-motion: reduce) { .aqi-marker { transition: none; } }
+
+/* Flood zone — plain-language risk tier + code */
+.flood-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.flood-label { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; }
+.flood-dot { width: 9px; height: 9px; border-radius: 999px; flex: none; }
+.flood-dot.danger { background: var(--danger); }
+.flood-dot.warn { background: var(--warn); }
+.flood-dot.ok { background: var(--ok); }
+.flood-dot.muted { background: var(--muted); }
+.flood-code { font-size: 12px; flex: none; }
+.flood-blurb { font-size: 12.5px; line-height: 1.45; margin: 8px 0 0; }
+
+/* Disaster history — colour-coded dots + legend */
+.disaster-summary { margin: 0; font-size: 12.5px; }
+.disaster-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 6px 0 10px; }
+.legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.legend-dot { width: 7px; height: 7px; border-radius: 999px; flex: none; }
+.disaster-name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.disaster-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.disaster-dot { width: 8px; height: 8px; border-radius: 999px; flex: none; }
+.disaster-date { flex: none; }

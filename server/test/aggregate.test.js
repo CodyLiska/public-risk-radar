@@ -40,6 +40,20 @@ test('buildTimeline merges sources and sorts newest first', () => {
   assert.equal(out[0].title, 'Fire: Rose Fire');
 });
 
+test('buildTimeline carries lat/lon for fires and quakes only (not alerts/disasters)', () => {
+  const out = buildTimeline({
+    alerts: fulfilled([{ event: 'Heat', severity: 'Minor', onset: '2026-01-10T00:00:00Z' }]),
+    disasters: fulfilled([{ incidentType: 'Fire', title: 'X', declarationDate: '2026-03-01T00:00:00Z' }]),
+    wildfires: fulfilled([{ name: 'Rim', discovered: '2026-02-01T00:00:00Z', lat: 34.1, lon: -111.5 }]),
+    quakes: fulfilled([{ magnitude: 4, place: 'p', time: '2026-01-20T00:00:00Z', lat: 33.2, lon: -112.3 }]),
+  });
+  const byType = Object.fromEntries(out.map((e) => [e.type, e]));
+  assert.equal(byType.fire.lat, 34.1);
+  assert.equal(byType.quake.lon, -112.3);
+  assert.equal(byType.weather.lat, undefined); // area-based alert, no point
+  assert.equal(byType.disaster.lat, undefined); // county-level, no point
+});
+
 test('buildTimeline drops events without a time', () => {
   const out = buildTimeline({
     alerts: fulfilled([{ event: 'No Time Alert', severity: 'Minor' }]), // no onset/expires

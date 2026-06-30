@@ -5,6 +5,9 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 const props = defineProps({
   report: { type: Object, default: null },
+  // EPA facilities to plot — controlled by the card's radius dropdown, so the
+  // map reflects the selection (overrides the report's fixed 5-mi set).
+  epaFacilities: { type: Array, default: () => [] },
 });
 
 const mapEl = ref(null);
@@ -56,9 +59,34 @@ function addMarker(lon, lat, color, label, { size = 14, onTop = false } = {}) {
   markers.push(marker);
 }
 
+// A short-lived pulsing ring at a point so the eye can find it after the map
+// moves. Only one pulse at a time.
+let pulseMarker = null;
+function pulseAt(lat, lon) {
+  if (!map || lat == null || lon == null) return;
+  if (pulseMarker) pulseMarker.remove();
+  const el = document.createElement('div');
+  el.className = 'map-pulse';
+  pulseMarker = new maplibregl.Marker({ element: el }).setLngLat([lon, lat]).addTo(map);
+  const m = pulseMarker;
+  setTimeout(() => {
+    m.remove();
+    if (pulseMarker === m) pulseMarker = null;
+  }, 1900);
+}
+
+// Reusable "focus a point" API for the sidebar cards (e.g. click a water gauge
+// or disaster row to move the map there). Exposed via the component ref.
+function flyTo(lat, lon, { zoom = 12 } = {}) {
+  if (!map || lat == null || lon == null) return;
+  map.flyTo({ center: [lon, lat], zoom, duration: 800 });
+  pulseAt(lat, lon);
+}
+defineExpose({ flyTo });
+
 watch(
-  () => props.report,
-  (report) => {
+  [() => props.report, () => props.epaFacilities],
+  ([report]) => {
     if (!map || !report?.location) return;
     clearMarkers();
 
@@ -70,11 +98,10 @@ watch(
     // out of the bounds so a single distant outlier can't force the whole view to
     // zoom out and shrink the meaningful cluster. They stay reachable by zooming out.
     const bounds = new maplibregl.LngLatBounds([lon, lat], [lon, lat]);
-    if (s.epaFacilities?.ok) {
-      for (const f of s.epaFacilities.data) {
-        addMarker(f.lon, f.lat, '#ffb454', `EPA: ${f.name}`);
-        if (f.lon != null && f.lat != null) bounds.extend([f.lon, f.lat]);
-      }
+    // EPA markers come from the prop (the card's radius selection), not the report.
+    for (const f of props.epaFacilities) {
+      addMarker(f.lon, f.lat, '#ffb454', `EPA: ${f.name}`);
+      if (f.lon != null && f.lat != null) bounds.extend([f.lon, f.lat]);
     }
     if (s.wildfires?.ok) {
       for (const w of s.wildfires.data) {
@@ -83,7 +110,7 @@ watch(
       }
     }
     if (s.waterGauges?.ok) {
-      for (const g of s.waterGauges.data) addMarker(g.lon, g.lat, '#4fd18b', `Gauge: ${g.name}`);
+      for (const g of s.waterGauges.data) addMarker(g.lon, g.lat, '#4fd18b', `Gauge: ${g.name}`, { size: 16 });
     }
     if (s.earthquakes?.ok) {
       for (const q of s.earthquakes.data) addMarker(q.lon, q.lat, '#b07cff', `M${q.magnitude} ${q.place}`);

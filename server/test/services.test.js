@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { stubFetchJson } from './helpers.js';
+import { stubFetchJson, stubFetchWith, jsonResponse } from './helpers.js';
 
 import { geocodeAddress } from '../src/services/geocode.js';
 import { getDisasterHistory, splitCountyGeoid } from '../src/services/fema.js';
@@ -160,11 +160,42 @@ test('getNearbyFacilities dedupes by REGISTRY_ID and collects programs', async (
   });
   try {
     const out = await getNearbyFacilities(33.4, -112.4);
-    assert.equal(out.length, 2);
-    const acme = out.find((f) => f.registryId === '110');
+    assert.equal(out.total, 2);
+    assert.equal(out.facilities.length, 2);
+    const acme = out.facilities.find((f) => f.registryId === '110');
     assert.deepEqual(acme.programs, ['RCRAINFO', 'NPDES']); // merged across rows
     assert.equal(acme.address, '1 Main, Phoenix, AZ, 85007');
     assert.equal(acme.lat, 33.4);
+  } finally {
+    restore();
+  }
+});
+
+test('getNearbyFacilities pages through exceededTransferLimit', async () => {
+  // FRS caps each page; a single request would truncate ~1,500 rows to one page.
+  const { restore, calls } = stubFetchWith((url) => {
+    const offset = Number(new URL(url).searchParams.get('resultOffset'));
+    if (offset === 0) {
+      return jsonResponse({
+        exceededTransferLimit: true, // more rows remain — must fetch the next page
+        features: [
+          { attributes: { REGISTRY_ID: 'A', PRIMARY_NAME: 'Alpha', PGM_SYS_ACRNM: 'RCRAINFO' }, geometry: { x: -90, y: 30 } },
+          { attributes: { REGISTRY_ID: 'B', PRIMARY_NAME: 'Beta', PGM_SYS_ACRNM: 'TRI' }, geometry: { x: -90, y: 30 } },
+        ],
+      });
+    }
+    return jsonResponse({
+      features: [
+        { attributes: { REGISTRY_ID: 'C', PRIMARY_NAME: 'Gamma', PGM_SYS_ACRNM: 'NPDES' }, geometry: { x: -90, y: 30 } },
+      ],
+    });
+  });
+  try {
+    // distinct coords so the URL-keyed cache doesn't serve another test's payload
+    const out = await getNearbyFacilities(30.123, -90.123);
+    assert.equal(out.total, 3); // full count across both pages
+    assert.deepEqual(out.facilities.map((f) => f.registryId).sort(), ['A', 'B', 'C']); // both pages merged
+    assert.ok(calls() >= 2, 'should fetch more than one page');
   } finally {
     restore();
   }
@@ -207,6 +238,24 @@ test('getNearbyWildfires maps incident attributes', async () => {
     assert.equal(w.acres, 1200);
     assert.equal(w.discovered, '2026-02-01T00:00:00.000Z');
     assert.equal(w.lat, 33.4);
+    assert.ok(w.distanceMiles > 0, 'computes distance from the query point');
+  } finally {
+    restore();
+  }
+});
+
+test('getNearbyWildfires returns fires sorted nearest-first', async () => {
+  // distinct coords from the test above so the URL-keyed cache doesn't bleed
+  const restore = stubFetchJson({
+    features: [
+      { attributes: { IncidentName: 'Far Fire' }, geometry: { x: -110.5, y: 35.3 } },    // ~far
+      { attributes: { IncidentName: 'Near Fire' }, geometry: { x: -111.52, y: 34.52 } }, // ~near query point
+    ],
+  });
+  try {
+    const out = await getNearbyWildfires(34.5, -111.5);
+    assert.deepEqual(out.map((w) => w.name), ['Near Fire', 'Far Fire']);
+    assert.ok(out[0].distanceMiles < out[1].distanceMiles);
   } finally {
     restore();
   }
@@ -219,6 +268,7 @@ test('getFloodZone flags A/V zones as high risk', async () => {
     const out = await getFloodZone(33.7, -112.7);
     assert.equal(out.floodZone, 'AE');
     assert.equal(out.highRisk, true);
+    assert.equal(out.riskLevel, 'high');
     assert.equal(out.inMappedArea, true);
   } finally {
     restore();
@@ -229,18 +279,30 @@ test('getFloodZone reports not-in-mapped-area when no feature is returned', asyn
   const restore = stubFetchJson({ features: [] });
   try {
     const out = await getFloodZone(33.8, -112.8);
-    assert.deepEqual(out, { floodZone: null, zoneSubtype: null, highRisk: false, inMappedArea: false });
+    assert.deepEqual(out, { floodZone: null, zoneSubtype: null, highRisk: false, riskLevel: null, inMappedArea: false });
   } finally {
     restore();
   }
 });
 
-test('getFloodZone treats X zone as low risk', async () => {
-  const restore = stubFetchJson({ features: [{ attributes: { FLD_ZONE: 'X', ZONE_SUBTY: null } }] });
+test('getFloodZone treats unshaded X as minimal but shaded X (0.2%) as moderate', async () => {
+  // unshaded X — no subtype → minimal
+  const r1 = stubFetchJson({ features: [{ attributes: { FLD_ZONE: 'X', ZONE_SUBTY: null } }] });
   try {
-    assert.equal((await getFloodZone(33.9, -112.9)).highRisk, false);
+    const out = await getFloodZone(33.9, -112.9);
+    assert.equal(out.highRisk, false);
+    assert.equal(out.riskLevel, 'minimal');
   } finally {
-    restore();
+    r1();
+  }
+  // shaded X — 0.2% annual chance (500-yr floodplain) → moderate, still not high-risk
+  const r2 = stubFetchJson({ features: [{ attributes: { FLD_ZONE: 'X', ZONE_SUBTY: '0.2 PCT ANNUAL CHANCE FLOOD HAZARD' } }] });
+  try {
+    const out = await getFloodZone(34.1, -112.1);
+    assert.equal(out.highRisk, false);
+    assert.equal(out.riskLevel, 'moderate');
+  } finally {
+    r2();
   }
 });
 

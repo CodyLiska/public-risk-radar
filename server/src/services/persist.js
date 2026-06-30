@@ -64,8 +64,9 @@ async function insertLocation(address, loc) {
 
 // ── epa_facilities: upsert by registry_id ────────────────────────────────────
 async function upsertFacilities(source) {
-  if (!source?.ok || !source.data.length) return { count: 0 };
-  const f = dedupeBy(source.data, (x) => x.registryId);
+  const facilities = source?.data?.facilities ?? [];
+  if (!source?.ok || !facilities.length) return { count: 0 };
+  const f = dedupeBy(facilities, (x) => x.registryId);
   const { rowCount } = await query(
     `INSERT INTO epa_facilities (registry_id, name, address, lat, lon, geom, programs, raw_json)
      SELECT registry_id, name, address, lat, lon,
